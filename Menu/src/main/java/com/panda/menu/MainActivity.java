@@ -12,6 +12,10 @@ import android.view.View;
 import android.widget.EditText;
 import android.widget.TextView;
 
+import org.xmlpull.v1.XmlPullParser;
+import org.xmlpull.v1.XmlPullParserException;
+import org.xmlpull.v1.XmlPullParserFactory;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -19,11 +23,14 @@ import java.io.Reader;
 import java.io.UnsupportedEncodingException;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.ArrayList;
+import java.util.Iterator;
 
 public class MainActivity extends Activity {
 
     private static final String DEBUG_TAG = "Main";
     private TextView textView;
+    private InputStream stream;
 
 
     @Override
@@ -47,7 +54,7 @@ public class MainActivity extends Activity {
     }
 
     public void myConnection() {
-        String stringUrl = "http://10.0.2.2:8080/";
+        String stringUrl = "http://10.0.2.2:8080/tweet";
 
         ConnectivityManager connMgr = (ConnectivityManager)
                 getSystemService(Context.CONNECTIVITY_SERVICE);
@@ -95,32 +102,94 @@ public class MainActivity extends Activity {
             conn.setConnectTimeout(15000 /* milliseconds */);
             conn.setRequestMethod("GET");
             conn.setDoInput(true);
+
             // Starts the query
             conn.connect();
             int response = conn.getResponseCode();
-
             Log.d(DEBUG_TAG, "The response is: " + response);
-            is = conn.getInputStream();
 
-            // Convert the InputStream into a string
-            String contentAsString = readIt(is, len);
-            return contentAsString;
-
-            // Makes sure that the InputStream is closed after the app is
-            // finished using it.
-        } finally {
-            if (is != null) {
-                is.close();
+            stream = conn.getInputStream();
+            return startParse(stream);
+        }
+        finally {
+            if(stream != null){
+                stream.close();
             }
         }
     }
 
-    public String readIt(InputStream stream, int len) throws IOException, UnsupportedEncodingException {
-        Reader reader = null;
-        reader = new InputStreamReader(stream, "UTF-8");
-        char[] buffer = new char[len];
-        reader.read(buffer);
-        return new String(buffer);
+
+
+    private String startParse(InputStream stream){
+        XmlPullParserFactory pullParserFactory;
+
+        try {
+            pullParserFactory = XmlPullParserFactory.newInstance();
+
+            XmlPullParser parser = pullParserFactory.newPullParser();
+            parser.setFeature(XmlPullParser.FEATURE_PROCESS_NAMESPACES, false);
+            parser.setInput(stream, null);
+
+            return parseXML(parser);
+
+        } catch (XmlPullParserException e) {
+            return "There was an XML Pull Parser Exception in startParse()";
+
+        } catch (IOException e) {
+            // TODO Auto-generated catch block
+            return "There was an IO Exception in startParse()";
+        }
     }
 
+
+    private String parseXML(XmlPullParser parser) throws XmlPullParserException,IOException
+    {
+        String testName = null;
+        ArrayList<Restaurant> restaurants = null;
+        int eventType = parser.getEventType();
+        Restaurant currentProduct = null;
+        testName = "before starting loop";
+        while (eventType != XmlPullParser.END_DOCUMENT){
+            testName += " (" + eventType + ") ";
+            String name = null;
+            switch (eventType){
+                case XmlPullParser.START_DOCUMENT:
+                    restaurants = new ArrayList();
+                    break;
+                case XmlPullParser.START_TAG:
+                    name = parser.getName();
+                    testName += " " + name + " ";
+                    if (name.equals("restaurant")){
+                        currentProduct = new Restaurant();
+                    } else if (currentProduct != null){
+                        if (name.equals("name")){
+                            currentProduct.restaurantName = parser.nextText();
+                        }
+                    }
+                    break;
+//                    case XmlPullParser.TEXT:
+//                        testName += " ["  + parser.getText() + "] ";
+//                        break;
+                case XmlPullParser.END_TAG:
+                    name = parser.getName();
+                    if (name.equalsIgnoreCase("restaurant") && currentProduct != null){
+                        restaurants.add(currentProduct);
+                    }
+            }
+            eventType = parser.next();
+        }
+        String theName = getRestoName(restaurants);
+        return theName;
+    }
+    private String getRestoName(ArrayList<Restaurant> restaurants)
+    {
+        String theName = "";
+        Iterator<Restaurant> it = restaurants.iterator();
+        while(it.hasNext())
+        {
+            Restaurant currProduct  = it.next();
+            theName = currProduct.restaurantName;
+        }
+        return theName;
+    }
 }
