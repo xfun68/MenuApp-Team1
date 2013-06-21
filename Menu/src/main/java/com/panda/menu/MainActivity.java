@@ -54,7 +54,7 @@ public class MainActivity extends Activity {
     }
 
     public void myConnection() {
-        String stringUrl = "http://10.0.2.2:8080/tweet";
+        String stringUrl = "http://10.0.2.2:8080/";
 
         ConnectivityManager connMgr = (ConnectivityManager)
                 getSystemService(Context.CONNECTIVITY_SERVICE);
@@ -90,7 +90,7 @@ public class MainActivity extends Activity {
 
 
     private String downloadUrl(String myurl) throws IOException {
-        InputStream is = null;
+        InputStream stream = null;
         // Only display the first 500 characters of the retrieved
         // web page content.
         int len = 500;
